@@ -101,7 +101,8 @@ Recorded initial publication evidence:
 - Push date: 2026-10-12
 - GitHub Actions run: https://github.com/SriKrishna40007/SecureSense/actions/runs/38269152038
 - Hosted CI result: success (SecureSense CI)
-- Versioned GitHub Release: pending
+- Versioned GitHub Release: v0.1.0
+- Release URL: https://github.com/SriKrishna40007/SecureSense/releases/tag/v0.1.0
 
 ## 7. Optional release tag
 
