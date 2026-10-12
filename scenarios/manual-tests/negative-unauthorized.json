@@ -1,0 +1,14 @@
+{
+  "events": [
+    {
+      "device_id": "TEMP-001",
+      "source_ip": "192.0.2.10",
+      "destination": "unapproved.example",
+      "destination_ip": "192.0.2.30",
+      "protocol": "mqtt",
+      "destination_port": 1883,
+      "network_zone": "iot",
+      "timestamp": "2026-10-12T13:01:00+00:00"
+    }
+  ]
+}

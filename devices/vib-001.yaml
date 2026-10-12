@@ -1,0 +1,14 @@
+device_id: VIB-001
+device_type: vibration_sensor
+purpose: Monitor machine vibration
+network_zone: iot
+
+security_policy:
+  allowed_protocols:
+    - mqtt
+  allowed_destinations:
+    - mqtt-gateway
+  allowed_ports:
+    - 8883
+  allowed_network_zones:
+    - iot

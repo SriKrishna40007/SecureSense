@@ -1,0 +1,34 @@
+{
+  "events": [
+    {
+      "device_id": "TEMP-001",
+      "source_ip": "192.0.2.10",
+      "destination": "mqtt-gateway",
+      "destination_ip": "192.0.2.20",
+      "protocol": "mqtt",
+      "destination_port": 8883,
+      "network_zone": "iot",
+      "timestamp": "2026-10-10T08:00:00+00:00"
+    },
+    {
+      "device_id": "TEMP-001",
+      "source_ip": "192.0.2.20",
+      "destination": "unapproved-host",
+      "destination_ip": "192.0.2.30",
+      "protocol": "mqtt",
+      "destination_port": 4444,
+      "network_zone": "iot",
+      "timestamp": "2026-10-10T08:01:00+00:00"
+    },
+    {
+      "device_id": "UNKNOWN-999",
+      "source_ip": "192.0.2.30",
+      "destination": "unapproved-host",
+      "destination_ip": "192.0.2.40",
+      "protocol": "tcp",
+      "destination_port": 4444,
+      "network_zone": "iot",
+      "timestamp": "2026-10-10T08:02:00+00:00"
+    }
+  ]
+}

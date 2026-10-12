@@ -1,0 +1,29 @@
+[project]
+name = "securesense"
+version = "0.1.0"
+description = "Industrial IoT Cloud Security & Threat Detection Platform"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.143.0",
+    "paho-mqtt>=2.1.0",
+    "pyyaml>=6.0.3",
+    "rich>=15.0.0",
+    "typer>=0.16.0",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "platformio>=6.2.0",
+    "pytest>=9.0.0",
+    "ruff>=0.11.0",
+]
+
+[project.scripts]
+securesense = "securesense.cli.main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

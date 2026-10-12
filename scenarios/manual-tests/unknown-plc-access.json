@@ -1,0 +1,14 @@
+{
+  "events": [
+    {
+      "device_id": "UNKNOWN-PLC-001",
+      "source_ip": "192.0.2.55",
+      "destination": "industrial-plc-controller",
+      "destination_ip": "192.0.2.80",
+      "protocol": "tcp",
+      "destination_port": 44818,
+      "network_zone": "iot",
+      "timestamp": "2026-10-12T14:00:00+00:00"
+    }
+  ]
+}

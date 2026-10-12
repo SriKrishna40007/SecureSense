@@ -1,0 +1,54 @@
+
+# Local Wokwi CLI binary
+wokwi-cli.exe
+
+# PlatformIO build artifacts
+.pio/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+.env/
+.env.*
+!.env.example
+
+# Test and lint artifacts
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets and local credentials
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+secrets.*
+
+# Generated reports and local outputs
+reports/
+*.log
+
+# IDE and operating system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# PlatformIO and Wokwi generated artifacts
+
+# Wokwi runtime logs and local backups
+wokwi/**/heartbeat.log
+wokwi/**/*-debug.log
+wokwi/**/*-check.log
+wokwi/**/*-serial.log
+wokwi/**/*.log
+wokwi/**/*.sensor-backup

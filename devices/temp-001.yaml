@@ -1,0 +1,14 @@
+device_id: TEMP-001
+device_type: temperature_sensor
+purpose: Monitor machine temperature
+network_zone: iot
+
+security_policy:
+  allowed_protocols:
+    - mqtt
+  allowed_destinations:
+    - mqtt-gateway
+  allowed_ports:
+    - 8883
+  allowed_network_zones:
+    - iot
