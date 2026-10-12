@@ -1,4 +1,7 @@
 # SecureSense
+[![Release](https://img.shields.io/github/v/release/SriKrishna40007/SecureSense)](https://github.com/SriKrishna40007/SecureSense/releases)
+[![SecureSense CI](https://github.com/SriKrishna40007/SecureSense/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/SriKrishna40007/SecureSense/actions)
+
 ## Industrial IoT Cloud Security & Threat Detection Platform
 
 SecureSense is a Python-based security investigation platform for industrial
@@ -327,7 +330,7 @@ The latest local validation completed successfully:
 These results describe the local validation performed so far. The Wokwi
 serial-output replay was verified through the MQTT bridge and a local MQTT
 subscriber. Continuous direct Wokwi-to-MQTT streaming is not implemented.
-The GitHub Actions workflow has not yet been verified on GitHub.
+GitHub Actions CI passed for the latest documentation commit [`a61ba25`](https://github.com/SriKrishna40007/SecureSense/actions/runs/38270802624).
 
 ## License
 
@@ -450,5 +453,8 @@ validated, and prepared for release.
 - [Release checklist](docs/RELEASE_CHECKLIST.md) — repository review, local
   validation, approval gates, commit and push steps, and hosted CI evidence.
 
-**Release status:** Local validation is complete for the documented scope.
-GitHub push and hosted CI verification are pending.
+**Release status:** Version `v0.1.0` is published on GitHub.
+
+- Release tag: `v0.1.0`, pointing to commit `b784493`.
+- Latest documentation commit: `a61ba25` on `master`.
+- Hosted CI: [passed for the latest documentation commit](https://github.com/SriKrishna40007/SecureSense/actions/runs/38270802624).
