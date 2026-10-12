@@ -5,8 +5,9 @@
 Use this checklist to prepare, review, and release SecureSense without
 confusing successful local validation with a completed hosted release.
 
-**Current release state:** Local implementation and validation are complete
-for the recorded scope. GitHub push and hosted CI verification remain pending.
+**Current release state:** Initial implementation is pushed to GitHub and
+hosted CI passed for the initial commit. The versioned GitHub Release is still
+pending until its tag and release page are created and verified.
 
 Do not mark a step complete until its evidence has been observed.
 
@@ -92,14 +93,15 @@ After the commit is reviewed and push approval is given:
 7. Investigate and fix any failure, then rerun the checks.
 8. Do not claim hosted CI success until the actual run is successful.
 
-Record release evidence below after the push:
+Recorded initial publication evidence:
 
-- Repository URL: pending
-- Branch: pending
-- Commit identifier: pending
-- Push date: pending
-- GitHub Actions run URL: pending
-- Hosted CI result: pending
+- Repository URL: https://github.com/SriKrishna40007/SecureSense
+- Branch: master
+- Commit identifier: 65f508fbb8c73ae3c7b2b7f20cd9478da2b986a1
+- Push date: 2026-10-12
+- GitHub Actions run: https://github.com/SriKrishna40007/SecureSense/actions/runs/38269152038
+- Hosted CI result: success (SecureSense CI)
+- Versioned GitHub Release: pending
 
 ## 7. Optional release tag
 
@@ -118,7 +120,7 @@ not imply that a tag exists before it has actually been created and verified.
 - Incident state is held in memory and is not persistent across restarts.
 - MQTT sensor telemetry is not automatically converted into network events.
 - The local anonymous MQTT configuration is for isolated simulation only.
-- Hosted CI remains unverified until the GitHub workflow has actually run.
+- Hosted CI passed for the initial commit; verify CI again for subsequent release commits.
 
 ## 9. Final release acceptance
 
