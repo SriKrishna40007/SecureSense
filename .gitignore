@@ -52,3 +52,6 @@ wokwi/**/*-check.log
 wokwi/**/*-serial.log
 wokwi/**/*.log
 wokwi/**/*.sensor-backup
+
+# Local SecureSense database files
+.data/

@@ -90,3 +90,40 @@ def test_rejects_risk_assessment_for_another_finding(
         service.create_from_finding(finding, unrelated_assessment)
 
     assert service.list_incidents() == []
+
+
+def test_service_transition_survives_repository_reopen(
+    finding: SecurityFinding,
+    tmp_path,
+) -> None:
+    from securesense.domain.incidents.models import IncidentStatus
+    from securesense.infrastructure.persistence.sqlite_incident_repository import (
+        SQLiteIncidentRepository,
+    )
+
+    database = tmp_path / "incident-lifecycle.sqlite3"
+    service = IncidentService(SQLiteIncidentRepository(database))
+    incident = service.create_from_finding(
+        finding,
+        RiskScorer().assess(finding),
+    )
+
+    transitioned = service.transition(
+        incident_id=incident.incident_id,
+        new_status=IncidentStatus.INVESTIGATING,
+        actor="security-analyst",
+        note="Investigating suspicious device communication",
+    )
+
+    restored = IncidentService(SQLiteIncidentRepository(database)).get(
+        incident.incident_id
+    )
+
+    assert transitioned.status is IncidentStatus.INVESTIGATING
+    assert restored.status is IncidentStatus.INVESTIGATING
+    assert len(restored.history) == 1
+    assert restored.history[0].previous_status is IncidentStatus.OPEN
+    assert restored.history[0].new_status is IncidentStatus.INVESTIGATING
+    assert restored.history[0].actor == "security-analyst"
+    assert restored.history[0].note == ("Investigating suspicious device communication")
+    assert restored.updated_at == restored.history[0].occurred_at

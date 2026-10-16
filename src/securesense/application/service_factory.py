@@ -24,6 +24,9 @@ from securesense.domain.risk.scorer import RiskScorer
 from securesense.infrastructure.config.device_loader import (
     DeviceConfigurationLoader,
 )
+from securesense.infrastructure.persistence.sqlite_incident_repository import (
+    SQLiteIncidentRepository,
+)
 
 
 @dataclass(frozen=True)
@@ -34,16 +37,15 @@ class SecureSenseServices:
     investigator: SecurityInvestigationService
 
 
-def build_services(devices_dir: Path) -> SecureSenseServices:
+def build_services(
+    devices_dir: Path,
+    database_path: Path | str | None = None,
+) -> SecureSenseServices:
     """Load device policies and construct the security service pipeline."""
     if not devices_dir.is_dir():
-        raise ValueError(
-            f"Device configuration directory not found: {devices_dir}"
-        )
+        raise ValueError(f"Device configuration directory not found: {devices_dir}")
 
-    config_files = sorted(
-        (*devices_dir.glob("*.yaml"), *devices_dir.glob("*.yml"))
-    )
+    config_files = sorted((*devices_dir.glob("*.yaml"), *devices_dir.glob("*.yml")))
     if not config_files:
         raise ValueError(
             f"No .yaml or .yml device configurations found in {devices_dir}"
@@ -61,7 +63,10 @@ def build_services(devices_dir: Path) -> SecureSenseServices:
         policy_evaluator=PolicyEvaluator(),
     )
     detector = SecurityDetectionService(security_service)
-    incident_service = IncidentService()
+    incident_repository = (
+        SQLiteIncidentRepository(database_path) if database_path is not None else None
+    )
+    incident_service = IncidentService(incident_repository)
 
     pipeline = SecurityPipelineService(
         detector=detector,

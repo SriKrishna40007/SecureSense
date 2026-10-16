@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
+from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
@@ -15,9 +16,13 @@ from securesense.application.service_factory import (
 )
 from securesense.domain.policies.models import Protocol
 from securesense.domain.telemetry.models import NetworkEvent
+from securesense.infrastructure.persistence.sqlite_investigation_repository import (
+    SQLiteInvestigationRepository,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DEVICES_DIR = PROJECT_ROOT / "devices"
+DEFAULT_DATABASE_PATH = PROJECT_ROOT / ".data" / "securesense.sqlite3"
 
 
 class NetworkEventInput(BaseModel):
@@ -48,12 +53,21 @@ def create_app(devices_dir: Path | None = None) -> FastAPI:
     configured_dir = devices_dir or Path(
         os.environ.get("SECURESENSE_DEVICES_DIR", str(DEFAULT_DEVICES_DIR))
     )
+    database_path = Path(
+        os.environ.get("SECURESENSE_DATABASE_PATH", str(DEFAULT_DATABASE_PATH))
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         """Build services once and retain them for the app's lifetime."""
         try:
-            app.state.services = build_services(configured_dir)
+            app.state.services = build_services(
+                configured_dir,
+                database_path=database_path,
+            )
+            app.state.investigation_repository = SQLiteInvestigationRepository(
+                database_path
+            )
         except (OSError, ValueError, KeyError, TypeError) as exc:
             raise RuntimeError(
                 "SecureSense device configuration could not be loaded."
@@ -67,8 +81,8 @@ def create_app(devices_dir: Path | None = None) -> FastAPI:
         title="SecureSense API",
         description=(
             "Industrial IoT security investigation API. "
-            "Incident and response state is held in memory and is not "
-            "persisted across application restarts."
+            "Incidents, lifecycle audit history, and investigation records "
+            "are stored in SQLite. Response recommendations remain dry-run."
         ),
         version="0.1.0",
         lifespan=lifespan,
@@ -189,14 +203,12 @@ def create_app(devices_dir: Path | None = None) -> FastAPI:
                 "rationale": linked.path.rationale,
                 "observed_start": linked.path.observed_start.isoformat(),
                 "observed_end": linked.path.observed_end.isoformat(),
-                "incident_ids": [
-                    incident.incident_id for incident in linked.incidents
-                ],
+                "incident_ids": [incident.incident_id for incident in linked.incidents],
             }
             for linked in result.correlated_paths
         ]
 
-        return {
+        response_body = {
             "events_investigated": len(result.event_results),
             "findings_count": sum(
                 item["finding"] is not None for item in event_results
@@ -209,6 +221,58 @@ def create_app(devices_dir: Path | None = None) -> FastAPI:
             "candidate_attack_paths": candidate_paths,
             "response_execution": "No response actions were executed.",
         }
+
+        investigation_id = f"INV-{uuid4().hex}"
+        repository = request.app.state.investigation_repository
+        repository.save(
+            investigation_id=investigation_id,
+            events=[item.model_dump(mode="json") for item in payload.events],
+            result=response_body,
+        )
+        response_body["investigation_id"] = investigation_id
+        return response_body
+
+    @app.get("/investigations", tags=["Investigations"])
+    def list_investigations(request: Request) -> dict[str, Any]:
+        """List previously saved investigation records."""
+        repository = getattr(
+            request.app.state,
+            "investigation_repository",
+            None,
+        )
+        if repository is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Investigation storage is not initialized.",
+            )
+
+        records = repository.list_all()
+        return {"count": len(records), "investigations": records}
+
+    @app.get("/investigations/{investigation_id}", tags=["Investigations"])
+    def get_investigation(
+        investigation_id: str,
+        request: Request,
+    ) -> dict[str, Any]:
+        """Retrieve a saved investigation and its results."""
+        repository = getattr(
+            request.app.state,
+            "investigation_repository",
+            None,
+        )
+        if repository is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Investigation storage is not initialized.",
+            )
+
+        try:
+            return repository.get(investigation_id)
+        except KeyError as exc:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Investigation '{investigation_id}' was not found.",
+            ) from exc
 
     return app
 
