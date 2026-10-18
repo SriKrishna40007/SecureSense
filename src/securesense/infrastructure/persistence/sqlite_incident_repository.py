@@ -63,6 +63,11 @@ class SQLiteIncidentRepository:
                     next_value INTEGER NOT NULL CHECK (next_value > 0)
                 );
 
+                CREATE TABLE IF NOT EXISTS processed_network_events (
+                    event_id TEXT PRIMARY KEY,
+                    processed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+
                 INSERT OR IGNORE INTO id_sequences (
                     sequence_name,
                     next_value
@@ -176,6 +181,92 @@ class SQLiteIncidentRepository:
                     for sequence, entry in enumerate(incident.history, start=1)
                 ],
             )
+
+
+    def record_event(self, event_id: str) -> bool:
+        """Atomically record an event ID; return False for a duplicate."""
+        if not isinstance(event_id, str) or not event_id.strip():
+            raise ValueError("'event_id' must be a non-empty string")
+
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            cursor = connection.execute(
+                """
+                INSERT OR IGNORE INTO processed_network_events (event_id)
+                VALUES (?)
+                """,
+                (event_id.strip(),),
+            )
+            return cursor.rowcount == 1
+
+    def save_event_and_incident(
+        self,
+        event_id: str,
+        incident: Incident | None,
+    ) -> bool:
+        """Record an event and optional incident in one transaction.
+
+        Returns False if the event ID was already processed. Any incident
+        persistence failure rolls back the event record as well.
+        """
+        if not isinstance(event_id, str) or not event_id.strip():
+            raise ValueError("'event_id' must be a non-empty string")
+        if incident is not None and not isinstance(incident, Incident):
+            raise TypeError("'incident' must be an Incident or None")
+
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            cursor = connection.execute(
+                """
+                INSERT OR IGNORE INTO processed_network_events (event_id)
+                VALUES (?)
+                """,
+                (event_id.strip(),),
+            )
+            if cursor.rowcount == 0:
+                return False
+
+            if incident is None:
+                return True
+
+            connection.execute(
+                """
+                INSERT INTO incidents (
+                    incident_id, title, device_id, risk_score,
+                    created_at, updated_at, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    incident.incident_id,
+                    incident.title,
+                    incident.device_id,
+                    incident.risk_score,
+                    incident.created_at.isoformat(),
+                    incident.updated_at.isoformat(),
+                    incident.status.value,
+                ),
+            )
+            connection.executemany(
+                """
+                INSERT INTO incident_audit_entries (
+                    incident_id, sequence, previous_status,
+                    new_status, actor, note, occurred_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        incident.incident_id,
+                        sequence,
+                        entry.previous_status.value,
+                        entry.new_status.value,
+                        entry.actor,
+                        entry.note,
+                        entry.occurred_at.isoformat(),
+                    )
+                    for sequence, entry in enumerate(incident.history, start=1)
+                ],
+            )
+            return True
 
     def get(self, incident_id: str) -> Incident:
         """Load an incident and its ordered audit history."""

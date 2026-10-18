@@ -5,15 +5,17 @@
 Use this checklist to prepare, review, and release SecureSense without
 confusing successful local validation with a completed hosted release.
 
-**Current release state:** Initial implementation is pushed to GitHub and
-hosted CI passed for the initial commit. The versioned GitHub Release is still
-pending until its tag and release page are created and verified.
+**Current release state:** Version `v0.1.0` is published on GitHub, and its
+release page and initial hosted CI evidence have been recorded. The changes
+currently under review are an unreleased update; they must pass final acceptance,
+receive explicit approval, and be pushed before the new version can be called
+released.
 
 Do not mark a step complete until its evidence has been observed.
 
 ## 2. Local validation
 
-- [x] Automated test suite: 129 passed.
+- [x] Automated test suite: 211 passed in the latest recorded full run (1 deprecation warning).
 - [x] Ruff: all checks passed.
 - [x] Dependency lock check: `uv lock --check` passed.
 - [x] Five manual investigation scenarios executed successfully.
@@ -37,7 +39,7 @@ must not be interpreted as having been rerun during the latest test suite.
       are not accidentally included in the release.
 - [ ] Ensure synthetic scenarios and security limitations are described honestly.
 - [ ] Review this checklist after each actual release step.
-- [ ] Remove `README.md.backup` only after the final README has been accepted.
+- [x] Confirmed `README.md.backup` is not present in the repository.
 
 ## 4. Repository review before staging
 
@@ -118,9 +120,9 @@ not imply that a tag exists before it has actually been created and verified.
 - Risk scores are configured severity-based scores, not probabilities.
 - Candidate attack paths require analyst validation.
 - Response recommendations are dry-run records; no enforcement is executed.
-- Incident state is held in memory and is not persistent across restarts.
-- MQTT sensor telemetry is not automatically converted into network events.
-- The local anonymous MQTT configuration is for isolated simulation only.
+- Investigations, incidents and lifecycle audit history, sensor readings, and event-deduplication records are persisted in SQLite; API restart persistence has been verified locally.
+- MQTT sensor telemetry is not automatically converted into network-security events; valid messages on the dedicated network-event topic are automatically investigated.
+- The local MQTT broker requires authentication but has no TLS configured; keep it confined to the local lab environment.
 - Hosted CI passed for the initial commit; verify CI again for subsequent release commits.
 
 ## 9. Final release acceptance

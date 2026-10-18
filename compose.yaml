@@ -1,15 +1,56 @@
 services:
+  api:
+    build:
+      context: .
+    container_name: securesense-api
+    restart: unless-stopped
+    entrypoint: ["python", "-m", "uvicorn"]
+    command: ["securesense.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      SECURESENSE_ENV: production
+      SECURESENSE_API_TOKEN: ${SECURESENSE_API_TOKEN:?Set SECURESENSE_API_TOKEN to a strong secret}
+      SECURESENSE_DATABASE_PATH: /app/.data/securesense.sqlite3
+      SECURESENSE_DEVICES_DIR: /app/devices
+      SECURESENSE_MQTT_ENABLED: "true"
+      SECURESENSE_MQTT_HOST: mqtt
+      SECURESENSE_MQTT_PORT: "1883"
+      SECURESENSE_MQTT_USERNAME: ${SECURESENSE_MQTT_USERNAME:?Set SECURESENSE_MQTT_USERNAME}
+      SECURESENSE_MQTT_PASSWORD: ${SECURESENSE_MQTT_PASSWORD:?Set SECURESENSE_MQTT_PASSWORD}
+    depends_on:
+      mqtt:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8001:8000"
+    volumes:
+      - ./.data:/app/.data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   mqtt:
     image: eclipse-mosquitto:2
     container_name: securesense-mqtt
     restart: unless-stopped
     ports:
       - "127.0.0.1:1883:1883"
+    environment:
+      SECURESENSE_MQTT_USERNAME: ${SECURESENSE_MQTT_USERNAME:?Set SECURESENSE_MQTT_USERNAME}
+      SECURESENSE_MQTT_PASSWORD: ${SECURESENSE_MQTT_PASSWORD:?Set SECURESENSE_MQTT_PASSWORD}
     volumes:
       - ./infrastructure/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_auth:/mosquitto/auth:ro
+      - ./.data/mosquitto/data:/mosquitto/data
     healthcheck:
-      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -p 1883 -t '$$SYS/broker/uptime' -C 1 -W 3 >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -p 1883 -u \"$$SECURESENSE_MQTT_USERNAME\" -P \"$$SECURESENSE_MQTT_PASSWORD\" -t '$$SYS/broker/uptime' -C 1 -W 3 >/dev/null 2>&1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 5s
+
+volumes:
+  mosquitto_auth:
+    external: true
+    name: securesense-mosquitto-auth

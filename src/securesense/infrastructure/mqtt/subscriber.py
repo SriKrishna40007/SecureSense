@@ -27,6 +27,8 @@ class MqttTelemetrySubscriber:
         host: str = "127.0.0.1",
         port: int = 1883,
         topic: str = DEFAULT_TOPIC,
+        username: str | None = None,
+        password: str | None = None,
     ) -> None:
         if not host.strip():
             raise ValueError("MQTT host must not be empty")
@@ -43,6 +45,10 @@ class MqttTelemetrySubscriber:
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id="securesense-telemetry",
         )
+        if (username is None) != (password is None):
+            raise ValueError("MQTT username and password must be provided together")
+        if username is not None and password is not None:
+            self.client.username_pw_set(username, password)
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
 
@@ -78,6 +84,27 @@ class MqttTelemetrySubscriber:
         except TelemetryValidationError as exc:
             self.on_error(
                 f"Rejected telemetry on topic '{message.topic}': {exc}"
+            )
+            return
+
+        topic_parts = message.topic.split("/")
+        if (
+            len(topic_parts) != 4
+            or topic_parts[0] != "securesense"
+            or topic_parts[1] != "devices"
+            or topic_parts[3] != "telemetry"
+            or not topic_parts[2]
+        ):
+            self.on_error(
+                f"Rejected telemetry on invalid topic '{message.topic}'"
+            )
+            return
+
+        topic_device_id = topic_parts[2]
+        if topic_device_id != reading.device_id:
+            self.on_error(
+                f"Rejected telemetry: topic device '{topic_device_id}' "
+                f"does not match payload device '{reading.device_id}'"
             )
             return
 

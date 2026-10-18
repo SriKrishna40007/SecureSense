@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101820">
+  <title>SecureSense | Security Operations</title>
+  <link rel="stylesheet" href="/static/dashboard.css">
+  <script src="/static/dashboard.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="SecureSense home">
+      <span class="brand-mark">S</span>
+      <span>Secure<span class="accent">Sense</span><small>INDUSTRIAL SECURITY</small></span>
+    </a>
+    <div class="nav-label">WORKSPACE</div>
+    <a class="nav-item active" href="#overview">◈ <span>Overview</span></a>
+    <a class="nav-item" href="#investigate">⌕ <span>Investigate event</span></a>
+    <a class="nav-item" href="#history">▤ <span>Investigations</span></a>
+    <div class="sidebar-bottom">
+      <span class="status-dot" id="sidebar-dot"></span>
+      <span id="sidebar-status">Connecting to API…</span>
+      <small>SECURESENSE · 0.1.0</small>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">INDUSTRIAL IoT / SECURITY OPERATIONS</div>
+        <h1>Security overview</h1>
+        <p class="muted">Monitor devices, investigate network activity and review security evidence.</p>
+      </div>
+      <button class="button button-secondary" id="refresh-button">↻ Refresh data</button>
+      <form id="auth-form" class="auth-form">
+        <label for="api-token">API token</label>
+        <input id="api-token" type="password" autocomplete="off"
+          placeholder="Required when API authentication is enabled">
+        <button class="button button-secondary" type="submit">Connect</button>
+      </form>
+    </header>
+
+    <div id="global-error" class="notice notice-error" role="alert" hidden></div>
+
+    <section id="overview" class="section">
+      <div class="section-heading">
+        <div><h2>System status</h2><p class="muted">Live information from the SecureSense API</p></div>
+        <span class="live-label"><span class="status-dot"></span> LIVE API CHECK</span>
+      </div>
+
+      <div class="stats-grid">
+        <article class="stat-card">
+          <div class="stat-label">API STATUS</div>
+          <div class="stat-value" id="api-status">Checking…</div>
+          <div class="stat-foot" id="api-detail">Waiting for health endpoint</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-label">REGISTERED DEVICES</div>
+          <div class="stat-value" id="device-count">—</div>
+          <div class="stat-foot">Configured IoT devices</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-label">SAVED INVESTIGATIONS</div>
+          <div class="stat-value" id="investigation-count">—</div>
+          <div class="stat-foot">Persisted investigation records</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-label">CANDIDATE ATTACK PATHS</div>
+          <div class="stat-value" id="path-count">—</div>
+          <div class="stat-foot">Across loaded investigations</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="iot-telemetry">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">INDUSTRIAL IOT</p>
+          <h2>Live sensor telemetry</h2>
+          <p class="muted">Latest readings received from registered devices over MQTT.</p>
+        </div>
+        <div class="telemetry-toolbar">
+          <span class="muted" id="telemetry-updated">Waiting for readings</span>
+          <button class="button button-secondary" id="telemetry-refresh" type="button">Refresh telemetry</button>
+        </div>
+      </div>
+      <div id="telemetry-error" class="notice notice-error" role="alert" hidden></div>
+      <div id="telemetry-loading" class="empty-state">Loading sensor telemetry…</div>
+      <div id="telemetry-empty" class="empty-state" hidden>No sensor readings received yet. Publish telemetry to a registered device's MQTT topic to see it here.</div>
+      <div id="telemetry-grid" class="telemetry-grid" aria-live="polite"></div>
+    </section>
+
+    <section class="section" id="investigate">
+      <div class="section-heading">
+        <div><h2>Investigate a network event</h2><p class="muted">Submit an event to the detection, risk and incident pipeline.</p></div>
+      </div>
+
+      <form id="event-form" class="panel">
+        <div class="form-grid">
+          <label>Device ID<input name="device_id" value="TEMP-001" required maxlength="120"></label>
+          <label>Protocol
+            <select name="protocol" required>
+              <option value="mqtt">MQTT</option>
+              <option value="tcp" selected>TCP</option>
+              <option value="udp">UDP</option>
+            </select>
+          </label>
+          <label>Source IP<input name="source_ip" value="192.0.2.50" required maxlength="100"></label>
+          <label>Destination IP<input name="destination_ip" value="192.0.2.60" required maxlength="100"></label>
+          <label>Destination / service<input name="destination" value="unknown-service" required maxlength="200"></label>
+          <label>Destination port<input name="destination_port" type="number" min="1" max="65535" value="443" required></label>
+          <label>Network zone<input name="network_zone" value="iot" required maxlength="100"></label>
+          <label>Event timestamp<input name="timestamp" id="event-timestamp" type="datetime-local" step="1" required></label>
+        </div>
+        <div class="form-actions">
+          <span class="muted form-hint">Use authorized test data. No response actions are executed.</span>
+          <button class="button" id="submit-event" type="submit">Run investigation →</button>
+        </div>
+        <div id="form-message" class="notice" role="status" hidden></div>
+      </form>
+
+      <div id="result-panel" class="panel result-panel" hidden>
+        <div class="section-heading">
+          <div><h2>Investigation result</h2><p id="result-summary" class="muted"></p></div>
+          <button class="button button-secondary" id="hide-result" type="button">Close</button>
+        </div>
+        <div id="result-content"></div>
+      </div>
+    </section>
+
+    <section class="section" id="history">
+      <div class="section-heading">
+        <div><h2>Investigation history</h2><p class="muted">Previously saved investigations, restored from SQLite</p></div>
+        <span class="muted" id="history-count">Loading…</span>
+      </div>
+      <div class="panel table-panel">
+        <div id="history-loading" class="empty-state">Loading investigation history…</div>
+        <div id="history-empty" class="empty-state" hidden>No investigations saved yet. Submit a network event above to get started.</div>
+        <div id="history-error" class="notice notice-error" hidden></div>
+        <div class="table-wrap" id="history-table-wrap" hidden>
+          <table>
+            <thead><tr><th>Investigation ID</th><th>Created</th><th>Events</th><th>Findings</th><th>Incidents</th><th></th></tr></thead>
+            <tbody id="history-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <footer>SecureSense · Industrial IoT Cloud Security &amp; Threat Detection <span>Evidence-led security · Analyst validation required for candidate paths</span></footer>
+  </main>
+</body>
+</html>

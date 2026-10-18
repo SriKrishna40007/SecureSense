@@ -218,7 +218,7 @@ The response contains the investigation results as JSON. The example uses
 documentation-range IP addresses and does not contact real devices. Remove
 the temporary request file when finished with `rm investigation-request.json`.
 
-The API processes submitted network events; it does not automatically convert MQTT telemetry into network-security events. Incident state is held in memory and is not persisted across restarts. No response actions are executed. Stop the server with `Ctrl+C`.
+The API processes submitted network events. The dedicated MQTT network-event subscriber also sends valid events into the investigation pipeline; sensor telemetry remains a separate workflow and is not automatically converted into network-security events. Investigations, incidents and lifecycle audit history, sensor readings, and event-deduplication records are persisted in SQLite. Response recommendations are dry-run only; no blocking or isolation actions are executed. Stop the server with `Ctrl+C`.
 
 
 ### Run tests and lint checks
@@ -312,7 +312,7 @@ evidence of real devices or an actual intrusion.
   traffic, isolate devices, or change network state.
 - The sample event scenario is simulated and does not establish real-world
   detection accuracy.
-- Anonymous MQTT access is suitable only for isolated local simulation.
+- The local MQTT broker requires authentication but does not currently use TLS; keep it confined to the local lab environment.
 - Production deployment would require appropriate broker authentication and
   authorization, transport security, secrets management, deployment hardening,
   operational monitoring, and validation against representative traffic.
@@ -432,9 +432,9 @@ cat reports/candidate-lateral-movement.txt
 ```
 
 Review the findings, evidence, risk assessments, incident information,
-candidate-path classification, and response audit. Incident identifiers
-can vary between separate runs because incident state is maintained in
-memory.
+candidate-path classification, and response audit. Incident identifiers are
+persisted by the application, so they may differ from earlier runs as new
+incidents are created.
 
 These scenarios validate defined application behavior against synthetic
 inputs. They do not establish detection accuracy against real industrial

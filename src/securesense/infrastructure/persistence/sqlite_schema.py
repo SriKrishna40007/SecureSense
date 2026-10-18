@@ -2,7 +2,7 @@
 
 import sqlite3
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 3
 
 
 def validate_schema_version(connection: sqlite3.Connection) -> None:

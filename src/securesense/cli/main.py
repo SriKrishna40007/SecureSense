@@ -1,4 +1,3 @@
-
 """SecureSense command-line interface."""
 
 import logging
@@ -27,6 +26,7 @@ from securesense.application.security_investigation_service import (
 from securesense.application.security_pipeline_service import (
     SecurityPipelineService,
 )
+from securesense.application.service_factory import build_services
 from securesense.domain.attack_paths.correlator import AttackPathCorrelator
 from securesense.domain.policies.evaluator import PolicyEvaluator
 from securesense.domain.response.models import ResponseAction
@@ -36,6 +36,9 @@ from securesense.infrastructure.config.device_loader import (
 )
 from securesense.infrastructure.events.json_event_loader import (
     JsonEventLoader,
+)
+from securesense.infrastructure.mqtt.network_event_subscriber import (
+    MqttNetworkEventSubscriber,
 )
 from securesense.infrastructure.mqtt.subscriber import (
     DEFAULT_TOPIC,
@@ -83,19 +86,95 @@ def listen(
             f"{reading.value:g} {reading.unit} | "
             f"{reading.timestamp.isoformat()}"
         ),
-        on_error=lambda message: console.print(
-            f"[red]MQTT ERROR[/red] {message}"
-        ),
+        on_error=lambda message: console.print(f"[red]MQTT ERROR[/red] {message}"),
     )
 
-    console.print(
-        f"Connecting to MQTT broker {host}:{port}; topic: {topic}"
-    )
+    console.print(f"Connecting to MQTT broker {host}:{port}; topic: {topic}")
 
     try:
         subscriber.start()
     except KeyboardInterrupt:
         console.print("\nStopping SecureSense telemetry listener...")
+    except OSError as exc:
+        raise typer.BadParameter(
+            f"Could not connect to MQTT broker {host}:{port}: {exc}"
+        ) from exc
+    finally:
+        subscriber.stop()
+
+
+@app.command("listen-network")
+def listen_network(
+    host: Annotated[
+        str, typer.Option(help="MQTT broker hostname or IP address.")
+    ] = "127.0.0.1",
+    port: Annotated[
+        int, typer.Option(min=1, max=65535, help="MQTT broker port.")
+    ] = 1883,
+    topic: Annotated[
+        str, typer.Option(help="MQTT network-event topic.")
+    ] = "securesense/network-events",
+    devices_dir: Annotated[
+        Path, typer.Option(help="Directory containing device YAML configurations.")
+    ] = Path("devices"),
+    database_path: Annotated[
+        Path, typer.Option(help="SQLite database path for incident persistence.")
+    ] = Path(".data/securesense.sqlite3"),
+) -> None:
+    """Process explicit MQTT network events through security investigation."""
+    logging.basicConfig(level=logging.WARNING)
+    database_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        services = build_services(
+            devices_dir=devices_dir,
+            database_path=database_path,
+        )
+    except (OSError, ValueError, TypeError, RuntimeError, yaml.YAMLError) as exc:
+        raise typer.BadParameter(
+            f"Could not initialize network security services: {exc}"
+        ) from exc
+
+    def process_event(event: object) -> None:
+        result = services.investigator.investigate([event])
+        if not result.event_results:
+            console.print("[yellow]Event processed without a result.[/yellow]")
+            return
+
+        event_result = result.event_results[0]
+        incident = event_result.incident
+
+        if incident is None:
+            console.print(
+                "[green]NETWORK EVENT PROCESSED[/green] No incident generated."
+            )
+            return
+
+        console.print(
+            "[red]SECURITY INCIDENT[/red] "
+            f"{incident.incident_id} | device={incident.device_id} | "
+            f"risk={incident.risk_score}"
+        )
+
+    subscriber = MqttNetworkEventSubscriber(
+        host=host,
+        port=port,
+        topic=topic,
+        on_event=process_event,
+        on_error=lambda message: console.print(
+            f"[red]MQTT NETWORK ERROR[/red] {message}"
+        ),
+    )
+
+    console.print(
+        f"Connecting to MQTT broker {host}:{port}; network-event topic: {topic}"
+    )
+    console.print(f"Incident database: {database_path}")
+
+    try:
+        subscriber.start()
+    except KeyboardInterrupt:
+        console.print("\\nStopping SecureSense network-event listener...")
     except OSError as exc:
         raise typer.BadParameter(
             f"Could not connect to MQTT broker {host}:{port}: {exc}"
@@ -123,8 +202,7 @@ def report(
         typer.Option(
             "--recommend-response",
             help=(
-                "Record dry-run investigation recommendations "
-                "for detected incidents."
+                "Record dry-run investigation recommendations for detected incidents."
             ),
         ),
     ] = False,
@@ -137,9 +215,7 @@ def report(
             param_hint="--devices-dir",
         )
 
-    config_files = sorted(
-        (*devices_dir.glob("*.yaml"), *devices_dir.glob("*.yml"))
-    )
+    config_files = sorted((*devices_dir.glob("*.yaml"), *devices_dir.glob("*.yml")))
 
     if not config_files:
         raise typer.BadParameter(

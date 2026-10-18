@@ -76,3 +76,34 @@ def test_rejects_invalid_network_fields(field: str, value: object) -> None:
 def test_rejects_oversized_payload() -> None:
     with pytest.raises(NetworkEventValidationError, match="exceeds"):
         parse_network_event(b" " * 65_537)
+
+def test_parses_optional_event_id() -> None:
+    payload = valid_payload()
+    payload["event_id"] = "sensor-event-0001"
+
+    event = parse_network_event(json.dumps(payload))
+
+    assert event.event_id == "sensor-event-0001"
+
+
+def test_event_id_is_optional_for_legacy_payloads() -> None:
+    event = parse_network_event(json.dumps(valid_payload()))
+
+    assert event.event_id is None
+
+
+@pytest.mark.parametrize("event_id", ["", "   ", 123, True, [], {}])
+def test_rejects_invalid_event_id(event_id: object) -> None:
+    payload = valid_payload()
+    payload["event_id"] = event_id
+
+    with pytest.raises(NetworkEventValidationError, match="event_id"):
+        parse_network_event(json.dumps(payload))
+
+
+def test_rejects_oversized_event_id() -> None:
+    payload = valid_payload()
+    payload["event_id"] = "x" * 201
+
+    with pytest.raises(NetworkEventValidationError, match="200 characters"):
+        parse_network_event(json.dumps(payload))

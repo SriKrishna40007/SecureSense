@@ -14,3 +14,4 @@ class NetworkEvent:
     destination_port: int
     network_zone: str
     timestamp: datetime
+    event_id: str | None = None

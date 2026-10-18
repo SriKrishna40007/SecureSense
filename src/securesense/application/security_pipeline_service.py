@@ -19,6 +19,7 @@ class SecurityPipelineResult:
     detection: DetectionResult
     risk_assessment: RiskAssessment | None
     incident: Incident | None
+    duplicate_event: bool = False
 
 
 class SecurityPipelineService:
@@ -39,18 +40,36 @@ class SecurityPipelineService:
         detection = self._detector.evaluate(event)
 
         if detection.finding is None:
+            duplicate_event = False
+            if event.event_id is not None:
+                duplicate_event = not self.incidents.record_event_id(
+                    event.event_id
+                )
             return SecurityPipelineResult(
                 detection=detection,
                 risk_assessment=None,
                 incident=None,
+                duplicate_event=duplicate_event,
             )
 
         assessment = self._risk_scorer.assess(detection.finding)
+        if event.event_id is not None:
+            accepted, incident = self.incidents.create_from_finding_for_event(
+                event.event_id,
+                detection.finding,
+                assessment,
+            )
+            return SecurityPipelineResult(
+                detection=detection,
+                risk_assessment=assessment,
+                incident=incident,
+                duplicate_event=not accepted,
+            )
+
         incident = self.incidents.create_from_finding(
             detection.finding,
             assessment,
         )
-
         return SecurityPipelineResult(
             detection=detection,
             risk_assessment=assessment,

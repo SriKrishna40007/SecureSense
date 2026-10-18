@@ -36,7 +36,7 @@ def test_both_repositories_share_schema_version(tmp_path: Path) -> None:
     SQLiteIncidentRepository(database)
     SQLiteInvestigationRepository(database)
 
-    assert get_schema_version(database) == 1
+    assert get_schema_version(database) == 3
     assert {
         "incidents",
         "incident_audit_entries",
@@ -58,7 +58,7 @@ def test_legacy_database_data_is_preserved(tmp_path: Path) -> None:
         marker = connection.execute("SELECT marker FROM legacy_marker").fetchone()[0]
 
     assert marker == "preserve-me"
-    assert get_schema_version(database) == 1
+    assert get_schema_version(database) == 3
 
 
 @pytest.mark.parametrize(

@@ -92,8 +92,7 @@ with audit history.
 The sample high-severity findings receive a configured risk score of 70/100.
 This score is a rule-based assessment, not a calibrated probability.
 
-Incident state is held in memory by the current application workflow and is
-not durable across application restarts.
+Incident state and lifecycle audit history are persisted in SQLite. Local verification confirmed that saved investigations and sensor readings remain available after an API restart.
 
 ### Phase 4 — Candidate attack-path correlation
 
@@ -169,9 +168,7 @@ The FastAPI application exposes:
 The API runs on localhost in the documented development command. It accepts
 validated JSON events and returns investigation results.
 
-It does not automatically ingest MQTT telemetry into the network-event
-investigation pipeline. Incident state is in memory, and response actions
-are not executed.
+The dedicated MQTT network-event subscriber automatically passes valid network events into the investigation pipeline. Sensor telemetry remains separate and is not automatically converted into network events. Incident and investigation data are persisted in SQLite. Response actions are not executed; recommendations remain dry-run only.
 
 ### Phase 9 — Docker and CI configuration
 
@@ -237,7 +234,7 @@ no real industrial controller was contacted.
 
 The latest recorded local validation after the documentation updates reported:
 
-- **Pytest:** 129 passed, 1 deprecation warning.
+- **Pytest:** 211 passed, 1 deprecation warning in the latest recorded full run.
 - **Ruff:** all checks passed.
 - **Dependency lock:** `uv lock --check` completed successfully.
 - **Manual scenarios:** all five documented CLI scenarios completed.
@@ -261,10 +258,10 @@ SecureSense currently has the following limitations:
 - Risk scores are configured severity-based scores, not probabilities.
 - Candidate attack paths require analyst validation.
 - Response recommendations are dry-run records, not enforcement actions.
-- Incident state is not persisted across application restarts.
-- MQTT sensor telemetry is not automatically translated into network events.
-- The local anonymous MQTT configuration is not a production security baseline.
-- Hosted GitHub Actions results have not yet been confirmed.
+- Incident and investigation data, lifecycle audit history, sensor readings, and event-deduplication records are persisted in SQLite; API restart persistence has been verified locally.
+- MQTT sensor telemetry is not automatically translated into network-security events; the dedicated network-event topic has its own investigation workflow.
+- The local MQTT broker requires authentication, but the setup does not provide TLS and is not a production or internet-facing security baseline.
+- Hosted CI must be verified for the eventual approved commit; historical CI success does not verify current uncommitted changes.
 
 A production-oriented deployment would require, at minimum, authenticated and
 authorized broker access, transport security, secrets management, hardened

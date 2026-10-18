@@ -8,7 +8,6 @@ from typing import Any
 from securesense.domain.policies.models import Protocol
 from securesense.domain.telemetry.models import NetworkEvent
 
-
 MAX_NETWORK_EVENT_BYTES = 65_536
 
 
@@ -99,6 +98,18 @@ def parse_network_event(payload: str | bytes) -> NetworkEvent:
     if timestamp.tzinfo is None or timestamp.utcoffset() is None:
         raise NetworkEventValidationError("'timestamp' must include a timezone")
 
+    event_id = data.get("event_id")
+    if event_id is not None:
+        if not isinstance(event_id, str) or not event_id.strip():
+            raise NetworkEventValidationError(
+                "'event_id' must be a non-empty string when supplied"
+            )
+        event_id = event_id.strip()
+        if len(event_id) > 200:
+            raise NetworkEventValidationError(
+                "'event_id' must not exceed 200 characters"
+            )
+
     return NetworkEvent(
         device_id=data["device_id"].strip(),
         source_ip=data["source_ip"].strip(),
@@ -108,4 +119,5 @@ def parse_network_event(payload: str | bytes) -> NetworkEvent:
         destination_port=port,
         network_zone=data["network_zone"].strip().lower(),
         timestamp=timestamp,
+        event_id=event_id,
     )

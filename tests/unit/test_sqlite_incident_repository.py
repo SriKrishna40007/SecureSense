@@ -151,3 +151,42 @@ def test_failed_audit_write_rolls_back_incident_update(
     restored = SQLiteIncidentRepository(database).get("INC-0001")
     assert restored.status is IncidentStatus.OPEN
     assert restored.history == []
+
+def test_event_record_rolls_back_when_incident_insert_fails(tmp_path) -> None:
+    import sqlite3
+    from datetime import UTC, datetime
+
+    from securesense.domain.incidents.models import Incident
+    from securesense.infrastructure.persistence.sqlite_incident_repository import (
+        SQLiteIncidentRepository,
+    )
+
+    database_path = tmp_path / "rollback.sqlite3"
+    repository = SQLiteIncidentRepository(database_path)
+    now = datetime.now(UTC)
+    incident = Incident(
+        incident_id="INC-ROLLBACK",
+        title="Rollback verification",
+        device_id="TEMP-001",
+        risk_score=70,
+        created_at=now,
+        updated_at=now,
+    )
+
+    with repository._connect() as connection:
+        connection.execute(
+            """
+            CREATE TRIGGER reject_test_incident
+            BEFORE INSERT ON incidents
+            WHEN NEW.incident_id = 'INC-ROLLBACK'
+            BEGIN
+                SELECT RAISE(ABORT, 'intentional rollback test');
+            END;
+            """
+        )
+
+    with pytest.raises(sqlite3.IntegrityError, match="intentional rollback test"):
+        repository.save_event_and_incident("rollback-event-001", incident)
+
+    # The event ID must not remain claimed after the incident insert fails.
+    assert repository.record_event("rollback-event-001") is True

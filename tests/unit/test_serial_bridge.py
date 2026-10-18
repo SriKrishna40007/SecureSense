@@ -101,3 +101,44 @@ def test_reports_unconfirmed_publish():
             ["TEMP-001 temperature=24.00 C\n"],
             client,
         )
+
+def test_main_configures_mqtt_authentication(monkeypatch):
+    from securesense.infrastructure.mqtt import serial_bridge
+
+    client = Mock()
+    monkeypatch.setattr(serial_bridge.mqtt, "Client", Mock(return_value=client))
+    monkeypatch.setenv("SECURESENSE_MQTT_USERNAME", "test-user")
+    monkeypatch.setenv("SECURESENSE_MQTT_PASSWORD", "test-password")
+    monkeypatch.setenv("SECURESENSE_MQTT_PORT", "2883")
+    monkeypatch.setattr(serial_bridge.sys, "stdin", ["unrelated output\\n"])
+
+    assert serial_bridge.main() == 1
+    client.username_pw_set.assert_called_once_with("test-user", "test-password")
+    client.connect.assert_called_once_with("127.0.0.1", 2883, keepalive=60)
+
+
+def test_main_rejects_incomplete_mqtt_credentials(monkeypatch):
+    from securesense.infrastructure.mqtt import serial_bridge
+
+    client_factory = Mock()
+    monkeypatch.setattr(serial_bridge.mqtt, "Client", client_factory)
+    monkeypatch.setenv("SECURESENSE_MQTT_USERNAME", "test-user")
+    monkeypatch.delenv("SECURESENSE_MQTT_PASSWORD", raising=False)
+
+    assert serial_bridge.main() == 1
+    client_factory.return_value.connect.assert_not_called()
+
+
+def test_main_connects_without_auth_when_credentials_are_absent(monkeypatch):
+    from securesense.infrastructure.mqtt import serial_bridge
+
+    client = Mock()
+    monkeypatch.setattr(serial_bridge.mqtt, "Client", Mock(return_value=client))
+    monkeypatch.delenv("SECURESENSE_MQTT_USERNAME", raising=False)
+    monkeypatch.delenv("SECURESENSE_MQTT_PASSWORD", raising=False)
+    monkeypatch.delenv("SECURESENSE_MQTT_PORT", raising=False)
+    monkeypatch.setattr(serial_bridge.sys, "stdin", ["unrelated output\\n"])
+
+    assert serial_bridge.main() == 1
+    client.username_pw_set.assert_not_called()
+    client.connect.assert_called_once_with("127.0.0.1", 1883, keepalive=60)

@@ -27,6 +27,8 @@ class MqttNetworkEventSubscriber:
         host: str = "127.0.0.1",
         port: int = 1883,
         topic: str = DEFAULT_NETWORK_EVENT_TOPIC,
+        username: str | None = None,
+        password: str | None = None,
     ) -> None:
         if not host.strip():
             raise ValueError("MQTT host must not be empty")
@@ -45,6 +47,10 @@ class MqttNetworkEventSubscriber:
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id="securesense-network-events",
         )
+        if (username is None) != (password is None):
+            raise ValueError("MQTT username and password must be provided together")
+        if username is not None and password is not None:
+            self.client.username_pw_set(username, password)
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
 
@@ -80,7 +86,7 @@ class MqttNetworkEventSubscriber:
 
         try:
             self.on_event(event)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - isolate callback failures at the MQTT boundary
             self.on_error(
                 f"Network event handler failed for topic '{message.topic}': {exc}"
             )

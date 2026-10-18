@@ -17,11 +17,106 @@ def isolate_test_database(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Give each API test an independent persistent database."""
+    """Give each API test an isolated environment and database."""
+    monkeypatch.setenv("SECURESENSE_ENV", "development")
+    monkeypatch.delenv("SECURESENSE_API_TOKEN", raising=False)
     monkeypatch.setenv(
         "SECURESENSE_DATABASE_PATH",
         str(tmp_path / "securesense-test.sqlite3"),
     )
+
+
+def test_dashboard_homepage_is_served() -> None:
+    with TestClient(create_app(DEVICES_DIR)) as client:
+        response = client.get("/")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "SecureSense | Security Operations" in response.text
+    assert "/static/dashboard.css" in response.text
+    assert "/static/dashboard.js" in response.text
+
+
+@pytest.mark.parametrize(
+    ("asset", "content_type"),
+    [
+        ("/static/dashboard.css", "text/css"),
+        ("/static/dashboard.js", "javascript"),
+    ],
+)
+def test_dashboard_static_assets_are_served(
+    asset: str,
+    content_type: str,
+) -> None:
+    with TestClient(create_app(DEVICES_DIR)) as client:
+        response = client.get(asset)
+
+    assert response.status_code == 200
+    assert content_type in response.headers["content-type"]
+    assert response.content
+
+
+def test_api_data_routes_require_bearer_token_when_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SECURESENSE_API_TOKEN", "test-only-token")
+
+    with TestClient(create_app(DEVICES_DIR)) as client:
+        assert client.get("/health").status_code == 200
+        assert client.get("/devices").status_code == 401
+        assert client.get("/investigations").status_code == 401
+        assert client.get("/investigations/INV-missing").status_code == 401
+
+        headers = {"Authorization": "Bearer wrong-token"}
+        assert client.get("/devices", headers=headers).status_code == 401
+
+        headers = {"Authorization": "Bearer test-only-token"}
+        assert client.get("/devices", headers=headers).status_code == 200
+        assert client.get("/investigations", headers=headers).status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("token", "should_start"),
+    [
+        ("", False),
+        ("too-short", False),
+        ("a" * 32, True),
+    ],
+)
+def test_production_requires_strong_api_token(
+    monkeypatch: pytest.MonkeyPatch,
+    token: str,
+    should_start: bool,
+) -> None:
+    monkeypatch.setenv("SECURESENSE_ENV", "production")
+    monkeypatch.setenv("SECURESENSE_API_TOKEN", token)
+
+    if not should_start:
+        with pytest.raises(
+            RuntimeError,
+            match="Production requires SECURESENSE_API_TOKEN",
+        ):
+            create_app(DEVICES_DIR)
+        return
+
+    with TestClient(create_app(DEVICES_DIR)) as client:
+        response = client.get("/devices")
+        assert response.status_code == 401
+
+        response = client.get(
+            "/devices",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 200
+
+
+def test_unknown_environment_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SECURESENSE_ENV", "staging")
+
+    with pytest.raises(RuntimeError, match="SECURESENSE_ENV must be"):
+        create_app(DEVICES_DIR)
 
 
 def test_health_endpoint() -> None:
@@ -211,6 +306,10 @@ def test_investigation_survives_api_restart() -> None:
     assert restored["result"]["findings_count"] == original["findings_count"]
     assert restored["result"]["incidents_count"] == original["incidents_count"]
     assert restored["result"]["event_results"] == original["event_results"]
+    assert restored["result"] == {
+        key: value for key, value in original.items()
+        if key != "investigation_id"
+    }
     assert any(
         item["investigation_id"] == investigation_id
         for item in listed_response.json()["investigations"]
@@ -222,3 +321,47 @@ def test_get_unknown_investigation_returns_404() -> None:
         response = client.get("/investigations/INV-does-not-exist")
 
     assert response.status_code == 404
+
+
+def test_telemetry_endpoints_return_persisted_readings() -> None:
+    from datetime import UTC, datetime
+
+    from securesense.domain.telemetry.sensor_reading import SensorReading
+
+    with TestClient(create_app(DEVICES_DIR)) as client:
+        repository = client.app.state.telemetry_repository
+        repository.save(
+            SensorReading(
+                device_id="TEMP-001",
+                metric="temperature",
+                value=24.5,
+                unit="celsius",
+                timestamp=datetime(2026, 10, 17, tzinfo=UTC),
+            )
+        )
+
+        latest = client.get("/telemetry/latest")
+        history = client.get("/telemetry/readings")
+
+    assert latest.status_code == 200
+    assert latest.json()["count"] == 1
+    assert latest.json()["readings"][0]["device_id"] == "TEMP-001"
+    assert latest.json()["readings"][0]["value"] == 24.5
+
+    assert history.status_code == 200
+    assert history.json()["count"] == 1
+    assert history.json()["readings"][0]["metric"] == "temperature"
+
+
+def test_telemetry_endpoints_require_bearer_token_when_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SECURESENSE_API_TOKEN", "test-only-token")
+
+    with TestClient(create_app(DEVICES_DIR)) as client:
+        assert client.get("/telemetry/latest").status_code == 401
+        assert client.get("/telemetry/readings").status_code == 401
+
+        headers = {"Authorization": "Bearer test-only-token"}
+        assert client.get("/telemetry/latest", headers=headers).status_code == 200
+        assert client.get("/telemetry/readings", headers=headers).status_code == 200

@@ -1,6 +1,7 @@
 """Bridge Wokwi serial temperature readings to local MQTT."""
 
 import json
+import os
 import re
 import sys
 from collections.abc import Iterable
@@ -70,8 +71,16 @@ def main() -> int:
         client_id="securesense-wokwi-bridge",
     )
 
+    username = os.environ.get("SECURESENSE_MQTT_USERNAME")
+    password = os.environ.get("SECURESENSE_MQTT_PASSWORD")
+    if (username is None) != (password is None):
+        print("Bridge error: MQTT username and password must be provided together.", file=sys.stderr)
+        return 1
+    if username is not None and password is not None:
+        client.username_pw_set(username, password)
+
     try:
-        client.connect("127.0.0.1", 1883, keepalive=60)
+        client.connect("127.0.0.1", int(os.environ.get("SECURESENSE_MQTT_PORT", "1883")), keepalive=60)
         client.loop_start()
         count = publish_serial_readings(sys.stdin, client)
         print(f"Bridge finished; published {count} reading(s).")

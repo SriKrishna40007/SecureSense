@@ -109,8 +109,7 @@ The incident service creates incidents from investigation findings and risk
 assessments. The lifecycle model records supported state transitions and
 audit information.
 
-Incident state is held in memory and does not persist across application
-restarts in the current implementation.
+Incidents and their lifecycle audit history are persisted in SQLite. The application restores saved incident state across repository reopening and API restarts.
 
 ### Candidate attack-path correlation
 
@@ -174,9 +173,7 @@ changing industrial network state.
 
 ### Persistence boundary
 
-Incident state is in memory. Restarting the application can lose that state.
-A production-oriented system would need a deliberate persistence and recovery
-design.
+Incident state, lifecycle audit history, investigations, sensor readings, and event-deduplication records are persisted in SQLite. Restart recovery has been verified locally. Production use would still require an operational backup, recovery, monitoring, and database-management plan.
 
 ## 6. Threat scenarios and detection mapping
 
@@ -210,8 +207,7 @@ SecureSense does not currently claim to:
 - Provide production-certified industrial intrusion detection.
 - Prove that a candidate path represents an actual attack.
 - Identify or attribute an attacker.
-- Automatically ingest MQTT sensor telemetry as network-security events.
-- Persist incident state across restarts.
+- Automatically convert MQTT sensor telemetry into network-security events; telemetry and network-security events remain separate workflows.
 - Execute network blocking or device isolation.
 - Establish real-world detection accuracy from synthetic scenarios.
 - Have a verified hosted GitHub Actions result before the workflow is run.

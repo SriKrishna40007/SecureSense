@@ -79,6 +79,49 @@ def test_delivers_valid_sensor_reading():
     assert errors == []
 
 
+def test_rejects_payload_device_id_that_does_not_match_topic():
+    subscriber, readings, errors = make_subscriber()
+    message = Mock()
+    message.topic = "securesense/devices/TEMP-001/telemetry"
+    message.payload = (
+        b'{"device_id":"PRESS-001","metric":"pressure",'
+        b'"value":24.0,"unit":"kpa",'
+        b'"timestamp":"2026-10-10T06:00:00+00:00"}'
+    )
+
+    subscriber._on_message(Mock(), None, message)
+
+    assert readings == []
+    assert len(errors) == 1
+    assert "does not match payload device" in errors[0]
+
+
+@pytest.mark.parametrize(
+    "topic",
+    [
+        "securesense/devices/TEMP-001",
+        "securesense/other/TEMP-001/telemetry",
+        "securesense/devices//telemetry",
+        "other/devices/TEMP-001/telemetry",
+    ],
+)
+def test_rejects_invalid_telemetry_topic(topic):
+    subscriber, readings, errors = make_subscriber()
+    message = Mock()
+    message.topic = topic
+    message.payload = (
+        b'{"device_id":"TEMP-001","metric":"temperature",'
+        b'"value":24.0,"unit":"celsius",'
+        b'"timestamp":"2026-10-10T06:00:00+00:00"}'
+    )
+
+    subscriber._on_message(Mock(), None, message)
+
+    assert readings == []
+    assert len(errors) == 1
+    assert "invalid topic" in errors[0].lower()
+
+
 def test_reports_invalid_payload_without_crashing():
     subscriber, readings, errors = make_subscriber()
     message = Mock()
