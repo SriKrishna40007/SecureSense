@@ -5,11 +5,9 @@
 Use this checklist to prepare, review, and release SecureSense without
 confusing successful local validation with a completed hosted release.
 
-**Current release state:** Version `v0.1.0` is published on GitHub, and its
-release page and initial hosted CI evidence have been recorded. The changes
-currently under review are an unreleased update; they must pass final acceptance,
-receive explicit approval, and be pushed before the new version can be called
-released.
+**Current release state:** Version `v0.2.0` is published on GitHub. Its release
+page and successful hosted CI run for commit `92e6a3c` have been verified.
+Version `v0.1.0` remains available as the previous release.
 
 Do not mark a step complete until its evidence has been observed.
 
@@ -103,8 +101,9 @@ Recorded initial publication evidence:
 - Push date: 2026-10-12
 - GitHub Actions run: https://github.com/SriKrishna40007/SecureSense/actions/runs/38269152038
 - Hosted CI result: success (SecureSense CI)
-- Versioned GitHub Release: v0.1.0
-- Release URL: https://github.com/SriKrishna40007/SecureSense/releases/tag/v0.1.0
+- Latest versioned GitHub Release: v0.2.0
+- Latest release URL: https://github.com/SriKrishna40007/SecureSense/releases/tag/v0.2.0
+- Previous release: v0.1.0
 
 ## 7. Optional release tag
 

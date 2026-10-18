@@ -453,8 +453,9 @@ validated, and prepared for release.
 - [Release checklist](docs/RELEASE_CHECKLIST.md) — repository review, local
   validation, approval gates, commit and push steps, and hosted CI evidence.
 
-**Release status:** Version `v0.1.0` is published on GitHub.
+**Release status:** Version `v0.2.0` is the latest published GitHub Release.
 
-- Release tag: `v0.1.0`, pointing to commit `b784493`.
+- Latest release: `v0.2.0`, pointing to commit `92e6a3c`.
+- Previous release: `v0.1.0`, pointing to commit `b784493`.
 - Latest documentation commit: `a61ba25` on `master`.
 - Hosted CI: [passed for the latest documentation commit](https://github.com/SriKrishna40007/SecureSense/actions/runs/38270802624).
